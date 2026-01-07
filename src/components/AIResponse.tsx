@@ -1,25 +1,51 @@
 import { motion } from 'framer-motion'
-import { Bot } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 
 interface AIResponseProps {
   response: string
+  sentiment?: string
   onShred: () => void
 }
 
-export function AIResponse({ response, onShred }: AIResponseProps) {
+const sentimentEmoji: Record<string, string> = {
+  angry: '😤',
+  sad: '😢',
+  frustrated: '😣',
+  anxious: '😰',
+  tired: '😩',
+  neutral: '😐',
+}
+
+const sentimentLabel: Record<string, string> = {
+  angry: '怒り',
+  sad: '悲しみ',
+  frustrated: 'フラストレーション',
+  anxious: '不安',
+  tired: '疲労',
+  neutral: '普通',
+}
+
+export function AIResponse({ response, sentiment, onShred }: AIResponseProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-2xl mx-auto p-4"
+      className="w-full max-w-2xl"
     >
-      <div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-indigo-500/30">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-            <Bot className="w-6 h-6 text-indigo-400" />
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700">
+        {sentiment && (
+          <div className="mb-4 flex items-center gap-2 text-sm text-slate-400">
+            <span className="text-2xl">{sentimentEmoji[sentiment] || '💭'}</span>
+            <span>検出された感情: {sentimentLabel[sentiment] || sentiment}</span>
+          </div>
+        )}
+        
+        <div className="flex items-start gap-4 mb-6">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-2xl flex-shrink-0">
+            🤖
           </div>
           <div className="flex-1">
-            <p className="text-slate-200 leading-relaxed whitespace-pre-wrap">
+            <p className="text-slate-300 leading-relaxed whitespace-pre-line">
               {response}
             </p>
           </div>
@@ -29,9 +55,10 @@ export function AIResponse({ response, onShred }: AIResponseProps) {
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={onShred}
-          className="w-full mt-6 py-4 bg-gradient-to-r from-red-500 to-orange-500 text-white font-bold text-lg rounded-xl shadow-lg shadow-red-500/25 hover:from-red-600 hover:to-orange-600 transition-all"
+          className="w-full py-4 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 rounded-xl text-white font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg"
         >
-          🗑️ 嫌な記憶をシュレッダーで粉砕する！
+          <Trash2 className="w-6 h-6" />
+          シュレッド！
         </motion.button>
       </div>
     </motion.div>

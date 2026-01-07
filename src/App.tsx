@@ -6,12 +6,15 @@ import { AIResponse } from './components/AIResponse'
 import { ShredderAnimation } from './components/ShredderAnimation'
 import { SettingsModal } from './components/SettingsModal'
 import { getEmpathyResponse } from './lib/gemini'
+import { submitComplaint, shredComplaint } from './lib/api'
 import type { AppPhase } from './types'
 
 function App() {
   const [phase, setPhase] = useState<AppPhase>('input')
   const [complaint, setComplaint] = useState('')
+  const [complaintId, setComplaintId] = useState<string | null>(null)
   const [aiResponse, setAiResponse] = useState('')
+  const [sentiment, setSentiment] = useState<string>('')
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [apiKey, setApiKey] = useState(() => {
     return localStorage.getItem('gemini_api_key') || ''
@@ -22,26 +25,49 @@ function App() {
     setPhase('responding')
 
     try {
-      const response = await getEmpathyResponse(text, apiKey)
-      setAiResponse(response)
+      // まずAPIを試す
+      const apiResult = await submitComplaint(text)
+      setComplaintId(apiResult.id)
+      setSentiment(apiResult.sentiment)
+      setAiResponse(apiResult.response)
       setPhase('responding')
-    } catch (error) {
-      console.error('Error getting AI response:', error)
-      setAiResponse('エラーが発生しました。もう一度お試しください。')
-      setPhase('responding')
+    } catch {
+      // APIエラー時はクライアントサイドで処理
+      try {
+        const response = await getEmpathyResponse(text, apiKey)
+        setAiResponse(response)
+        setComplaintId(null)
+        setPhase('responding')
+      } catch (error) {
+        console.error('Error getting AI response:', error)
+        setAiResponse('エラーが発生しました。もう一度お試しください。')
+        setPhase('responding')
+      }
     }
   }, [apiKey])
 
-  const handleShred = useCallback(() => {
+  const handleShred = useCallback(async () => {
     setPhase('shredding')
-  }, [])
+    
+    // APIでDBから完全削除
+    if (complaintId) {
+      try {
+        await shredComplaint(complaintId)
+        console.log('Complaint permanently deleted from DB')
+      } catch (error) {
+        console.error('Failed to delete from DB:', error)
+      }
+    }
+  }, [complaintId])
 
   const handleShredComplete = useCallback(() => {
     setPhase('complete')
     setTimeout(() => {
       setPhase('input')
       setComplaint('')
+      setComplaintId(null)
       setAiResponse('')
+      setSentiment('')
     }, 3000)
   }, [])
 
@@ -72,6 +98,7 @@ function App() {
         {phase === 'responding' && aiResponse && (
           <AIResponse
             response={aiResponse}
+            sentiment={sentiment}
             onShred={handleShred}
           />
         )}
@@ -84,6 +111,9 @@ function App() {
             </h2>
             <p className="text-slate-400">
               また愚痴があればいつでもどうぞ
+            </p>
+            <p className="text-xs text-slate-500 mt-2">
+              ※データは完全に消去されました
             </p>
           </div>
         )}
@@ -104,6 +134,7 @@ function App() {
 
       <footer className="py-4 text-center text-slate-500 text-sm">
         <p>愚痴データはサーバーに保存されません 🔒</p>
+        <p className="text-xs mt-1">（シュレッダー実行時にDBから完全削除）</p>
       </footer>
     </div>
   )

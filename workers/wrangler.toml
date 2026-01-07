@@ -1,0 +1,14 @@
+name = "ai-complaint-shredder-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "complaint-shredder"
+database_id = "" # wrangler d1 create complaint-shredder で取得後に設定
+
+[vars]
+GEMINI_API_KEY = "" # 本番環境では wrangler secret put GEMINI_API_KEY で設定
