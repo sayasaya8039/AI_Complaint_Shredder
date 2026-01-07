@@ -1,24 +1,58 @@
 import { Hono } from 'hono'
-import { analyzeAndRespond } from '../gemini'
+import { createProvider, getDemoResponse, type ProviderType } from '../providers'
 
 type Bindings = {
   DB: D1Database
-  GEMINI_API_KEY: string
+  GEMINI_API_KEY?: string
+  OPENAI_API_KEY?: string
+  CLAUDE_API_KEY?: string
 }
 
 export const complaintRoutes = new Hono<{ Bindings: Bindings }>()
 
+// 利用可能なプロバイダー一覧を取得
+complaintRoutes.get('/providers', (c) => {
+  const available: ProviderType[] = []
+  if (c.env.GEMINI_API_KEY) available.push('gemini')
+  if (c.env.OPENAI_API_KEY) available.push('openai')
+  if (c.env.CLAUDE_API_KEY) available.push('claude')
+
+  return c.json({
+    providers: available,
+    default: available[0] || null,
+  })
+})
+
 // 愚痴を投稿（感情分析 + AI応答 + DB保存）
 complaintRoutes.post('/', async (c) => {
-  const body = await c.req.json<{ content: string }>()
-  const { content } = body
+  const body = await c.req.json<{ content: string; provider?: ProviderType }>()
+  const { content, provider: requestedProvider } = body
 
   if (!content || content.trim().length === 0) {
     return c.json({ error: '愚痴を入力してください' }, 400)
   }
 
-  // 感情分析 + AI応答
-  const analysis = await analyzeAndRespond(content, c.env.GEMINI_API_KEY)
+  // プロバイダーを決定（リクエストで指定がなければ利用可能な最初のもの）
+  const providerName: ProviderType = requestedProvider ||
+    (c.env.GEMINI_API_KEY ? 'gemini' : c.env.OPENAI_API_KEY ? 'openai' : 'claude')
+
+  const aiProvider = createProvider(providerName, {
+    GEMINI_API_KEY: c.env.GEMINI_API_KEY,
+    OPENAI_API_KEY: c.env.OPENAI_API_KEY,
+    CLAUDE_API_KEY: c.env.CLAUDE_API_KEY,
+  })
+
+  let analysis
+  if (aiProvider) {
+    try {
+      analysis = await aiProvider.analyze(content)
+    } catch (error) {
+      console.error('AI provider error:', error)
+      analysis = getDemoResponse()
+    }
+  } else {
+    analysis = getDemoResponse()
+  }
 
   // D1に一時保存（後で完全削除するため）
   const id = crypto.randomUUID()
@@ -30,6 +64,7 @@ complaintRoutes.post('/', async (c) => {
 
   return c.json({
     id,
+    provider: aiProvider?.name || 'demo',
     sentiment: analysis.sentiment,
     intensity: analysis.intensity,
     response: analysis.response,

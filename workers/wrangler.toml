@@ -10,5 +10,7 @@ binding = "DB"
 database_name = "complaint-shredder"
 database_id = "" # wrangler d1 create complaint-shredder で取得後に設定
 
-[vars]
-GEMINI_API_KEY = "" # 本番環境では wrangler secret put GEMINI_API_KEY で設定
+# APIキーは wrangler secret put で設定（varsには空で定義）
+# wrangler secret put GEMINI_API_KEY
+# wrangler secret put OPENAI_API_KEY
+# wrangler secret put CLAUDE_API_KEY

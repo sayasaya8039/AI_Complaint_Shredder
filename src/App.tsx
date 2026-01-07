@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Settings } from 'lucide-react'
 import { Header } from './components/Header'
 import { ComplaintInput } from './components/ComplaintInput'
@@ -6,7 +6,7 @@ import { AIResponse } from './components/AIResponse'
 import { ShredderAnimation } from './components/ShredderAnimation'
 import { SettingsModal } from './components/SettingsModal'
 import { getEmpathyResponse } from './lib/gemini'
-import { submitComplaint, shredComplaint } from './lib/api'
+import { submitComplaint, shredComplaint, getAvailableProviders, type ProviderType } from './lib/api'
 import type { AppPhase } from './types'
 
 function App() {
@@ -15,21 +15,37 @@ function App() {
   const [complaintId, setComplaintId] = useState<string | null>(null)
   const [aiResponse, setAiResponse] = useState('')
   const [sentiment, setSentiment] = useState<string>('')
+  const [usedProvider, setUsedProvider] = useState<string>('')
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [availableProviders, setAvailableProviders] = useState<ProviderType[]>([])
+  const [selectedProvider, setSelectedProvider] = useState<ProviderType>(() => {
+    return (localStorage.getItem('selected_provider') as ProviderType) || 'gemini'
+  })
   const [apiKey, setApiKey] = useState(() => {
     return localStorage.getItem('gemini_api_key') || ''
   })
+
+  // 利用可能なプロバイダーを取得
+  useEffect(() => {
+    getAvailableProviders().then((res) => {
+      setAvailableProviders(res.providers)
+      if (res.default && !res.providers.includes(selectedProvider)) {
+        setSelectedProvider(res.default)
+      }
+    })
+  }, [])
 
   const handleSubmit = useCallback(async (text: string) => {
     setComplaint(text)
     setPhase('responding')
 
     try {
-      // まずAPIを試す
-      const apiResult = await submitComplaint(text)
+      // APIを試す（プロバイダー指定）
+      const apiResult = await submitComplaint(text, selectedProvider)
       setComplaintId(apiResult.id)
       setSentiment(apiResult.sentiment)
       setAiResponse(apiResult.response)
+      setUsedProvider(apiResult.provider)
       setPhase('responding')
     } catch {
       // APIエラー時はクライアントサイドで処理
@@ -37,6 +53,7 @@ function App() {
         const response = await getEmpathyResponse(text, apiKey)
         setAiResponse(response)
         setComplaintId(null)
+        setUsedProvider('client')
         setPhase('responding')
       } catch (error) {
         console.error('Error getting AI response:', error)
@@ -44,11 +61,11 @@ function App() {
         setPhase('responding')
       }
     }
-  }, [apiKey])
+  }, [apiKey, selectedProvider])
 
   const handleShred = useCallback(async () => {
     setPhase('shredding')
-    
+
     // APIでDBから完全削除
     if (complaintId) {
       try {
@@ -68,12 +85,18 @@ function App() {
       setComplaintId(null)
       setAiResponse('')
       setSentiment('')
+      setUsedProvider('')
     }, 3000)
   }, [])
 
   const handleSaveApiKey = useCallback((key: string) => {
     setApiKey(key)
     localStorage.setItem('gemini_api_key', key)
+  }, [])
+
+  const handleSelectProvider = useCallback((provider: ProviderType) => {
+    setSelectedProvider(provider)
+    localStorage.setItem('selected_provider', provider)
   }, [])
 
   return (
@@ -99,6 +122,7 @@ function App() {
           <AIResponse
             response={aiResponse}
             sentiment={sentiment}
+            provider={usedProvider}
             onShred={handleShred}
           />
         )}
@@ -130,6 +154,9 @@ function App() {
         onClose={() => setIsSettingsOpen(false)}
         apiKey={apiKey}
         onSaveApiKey={handleSaveApiKey}
+        availableProviders={availableProviders}
+        selectedProvider={selectedProvider}
+        onSelectProvider={handleSelectProvider}
       />
 
       <footer className="py-4 text-center text-slate-500 text-sm">

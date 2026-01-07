@@ -4,7 +4,16 @@ import { Trash2 } from 'lucide-react'
 interface AIResponseProps {
   response: string
   sentiment?: string
+  provider?: string
   onShred: () => void
+}
+
+const providerLabel: Record<string, string> = {
+  gemini: 'Gemini',
+  openai: 'OpenAI',
+  claude: 'Claude',
+  client: 'クライアント',
+  demo: 'デモ',
 }
 
 const sentimentEmoji: Record<string, string> = {
@@ -25,7 +34,7 @@ const sentimentLabel: Record<string, string> = {
   neutral: '普通',
 }
 
-export function AIResponse({ response, sentiment, onShred }: AIResponseProps) {
+export function AIResponse({ response, sentiment, provider, onShred }: AIResponseProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -33,12 +42,19 @@ export function AIResponse({ response, sentiment, onShred }: AIResponseProps) {
       className="w-full max-w-2xl"
     >
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700">
-        {sentiment && (
-          <div className="mb-4 flex items-center gap-2 text-sm text-slate-400">
-            <span className="text-2xl">{sentimentEmoji[sentiment] || '💭'}</span>
-            <span>検出された感情: {sentimentLabel[sentiment] || sentiment}</span>
-          </div>
-        )}
+        <div className="mb-4 flex items-center justify-between text-sm text-slate-400">
+          {sentiment && (
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">{sentimentEmoji[sentiment] || '💭'}</span>
+              <span>検出された感情: {sentimentLabel[sentiment] || sentiment}</span>
+            </div>
+          )}
+          {provider && (
+            <span className="px-2 py-1 bg-slate-700 rounded text-xs">
+              {providerLabel[provider] || provider}
+            </span>
+          )}
+        </div>
         
         <div className="flex items-start gap-4 mb-6">
           <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-2xl flex-shrink-0">

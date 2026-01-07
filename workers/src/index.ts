@@ -1,11 +1,12 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { analyzeAndRespond } from './gemini'
 import { complaintRoutes } from './routes/complaints'
 
 type Bindings = {
   DB: D1Database
-  GEMINI_API_KEY: string
+  GEMINI_API_KEY?: string
+  OPENAI_API_KEY?: string
+  CLAUDE_API_KEY?: string
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -18,7 +19,12 @@ app.use('*', cors({
 }))
 
 // ヘルスチェック
-app.get('/', (c) => c.json({ status: 'ok', message: 'AI愚痴聞きシュレッダー API' }))
+app.get('/', (c) => c.json({
+  status: 'ok',
+  message: 'AI愚痴聞きシュレッダー API',
+  version: '0.3.0',
+  providers: ['gemini', 'openai', 'claude'],
+}))
 
 // 愚痴関連ルート
 app.route('/api/complaints', complaintRoutes)
