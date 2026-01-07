@@ -8,10 +8,28 @@ https://ai-complaint-shredder.pages.dev
 
 ## 特徴
 
-- **AIによる共感応答** - 愚痴の感情を分析し、適切な共感メッセージを生成
+- **AIによる共感応答** - 愚痴に対して適切な共感メッセージを生成
 - **マルチプロバイダー対応** - Gemini、OpenAI、Claudeから選択可能
-- **プライバシー重視** - シュレッダー実行時にDBから完全削除
+- **完全クライアントサイド処理** - サーバーにデータを送信しない
+- **プライバシー重視** - APIキーもデータもブラウザ内で完結
 - **シュレッダーアニメーション** - 愚痴が物理的に破壊される演出
+
+## 使い方
+
+1. 設定画面（右上の歯車アイコン）を開く
+2. 使いたいAIを選択（Gemini / OpenAI / Claude）
+3. 選択したAIのAPIキーを入力して保存
+4. 愚痴を入力して送信
+5. AIの共感メッセージを読む
+6. 「シュレッド！」ボタンで愚痴を消去
+
+## 対応AIプロバイダー
+
+| プロバイダー | モデル | APIキー取得先 |
+|-------------|--------|--------------|
+| Gemini | gemini-2.0-flash | [Google AI Studio](https://aistudio.google.com/app/apikey) |
+| OpenAI | gpt-4o | [OpenAI Platform](https://platform.openai.com/api-keys) |
+| Claude | claude-sonnet-4 | [Anthropic Console](https://console.anthropic.com/settings/keys) |
 
 ## 技術スタック
 
@@ -21,103 +39,43 @@ https://ai-complaint-shredder.pages.dev
 - Tailwind CSS 4
 - Framer Motion
 
-### バックエンド
-- Cloudflare Workers
-- Hono (軽量Webフレームワーク)
-- Cloudflare D1 (SQLite)
+### ホスティング
+- Cloudflare Pages
 
-### AIプロバイダー
-- Google Gemini 2.0 Flash
-- OpenAI GPT-4o
-- Anthropic Claude Sonnet 4
+### AI API（クライアントサイド直接呼び出し）
+- Google Generative AI SDK
+- OpenAI REST API
+- Anthropic REST API
 
-## セットアップ
+## プライバシー
 
-### 必要条件
-- Node.js 20+
-- Cloudflareアカウント
+- **APIキー**: ブラウザのlocalStorageに保存（サーバー送信なし）
+- **愚痴データ**: サーバーに一切保存しない
+- **通信**: ブラウザから各AIプロバイダーへ直接通信
 
-### インストール
+## ローカル開発
 
 ```bash
 # リポジトリをクローン
 git clone https://github.com/sayasaya8039/AI_Complaint_Shredder.git
 cd AI_Complaint_Shredder
 
-# フロントエンドの依存関係をインストール
+# 依存関係をインストール
 npm install
 
-# Workersの依存関係をインストール
-cd workers
-npm install
-```
-
-### ローカル開発
-
-```bash
-# フロントエンド開発サーバー起動
-npm run dev
-
-# Workers開発サーバー起動（別ターミナル）
-cd workers
+# 開発サーバー起動
 npm run dev
 ```
 
-### 本番デプロイ
+## デプロイ
 
 ```bash
-# D1データベース作成（初回のみ）
-cd workers
-npx wrangler d1 create complaint-shredder
-
-# wrangler.tomlにdatabase_idを設定後、マイグレーション実行
-npx wrangler d1 migrations apply DB --remote
-
-# APIキーを設定（使用するプロバイダーのみ）
-npx wrangler secret put GEMINI_API_KEY
-npx wrangler secret put OPENAI_API_KEY
-npx wrangler secret put CLAUDE_API_KEY
-
-# Workersデプロイ
-npx wrangler deploy
-
-# フロントエンドビルド＆デプロイ
-cd ..
+# ビルド
 npm run build
+
+# Cloudflare Pagesにデプロイ
 npx wrangler pages deploy dist --project-name=ai-complaint-shredder
 ```
-
-## API仕様
-
-### POST /api/complaints
-愚痴を投稿し、感情分析とAI応答を取得
-
-```json
-{
-  "content": "愚痴の内容",
-  "provider": "gemini" // optional: gemini, openai, claude
-}
-```
-
-### DELETE /api/complaints/:id
-愚痴をDBから完全削除
-
-### GET /api/complaints/providers
-利用可能なAIプロバイダー一覧を取得
-
-### GET /api/complaints/stats
-匿名化された統計情報を取得
-
-## 感情分析カテゴリ
-
-| 感情 | 説明 |
-|------|------|
-| angry | 怒り |
-| sad | 悲しみ |
-| frustrated | フラストレーション |
-| anxious | 不安 |
-| tired | 疲労 |
-| neutral | 普通 |
 
 ## ライセンス
 

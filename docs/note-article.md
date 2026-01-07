@@ -1,4 +1,4 @@
-# 愚痴を吐いてAIに共感してもらい、シュレッダーで消す。ストレス解消アプリを作った
+# 愚痴を吐いてAIに共感してもらい、シュレッダーで消す。完全プライベートなストレス解消アプリを作った
 
 ## はじめに
 
@@ -11,41 +11,70 @@
 ## どんなアプリ？
 
 1. **愚痴を入力** - 思いの丈をぶちまける
-2. **AIが共感** - 感情を分析して、適切な共感メッセージを返す
+2. **AIが共感** - 適切な共感メッセージを返す
 3. **シュレッダーで消去** - 愚痴が物理的に破壊されるアニメーション
 
-最大のポイントは**プライバシー重視**。シュレッダーボタンを押すと、データベースから完全に削除されます。「消した演出」ではなく、本当に消えます。
+最大のポイントは**完全プライバシー**。データはサーバーに一切送信されません。すべてブラウザ内で完結します。
 
-## 技術的な特徴
+## 3つのAIから選べる
 
-### マルチAIプロバイダー対応
+好きなAIプロバイダーを選択できます：
 
-3つのAIから選択できます：
-
-- **Google Gemini 2.0 Flash** - 高速でコスパ良し
-- **OpenAI GPT-4o** - 安定した品質
-- **Anthropic Claude Sonnet 4** - 自然な日本語
+| AI | モデル | 特徴 |
+|----|--------|------|
+| **Gemini** | gemini-2.0-flash | 高速でコスパ良し |
+| **OpenAI** | gpt-4o | 安定した品質 |
+| **Claude** | claude-sonnet-4 | 自然な日本語 |
 
 設定画面でワンクリック切り替え。使い比べてみてください。
 
-### 感情分析
+## 使い方
 
-入力された愚痴を6つの感情カテゴリに分類：
+### 1. APIキーを取得
 
-| 感情 | 絵文字 |
-|------|--------|
-| 怒り | 😤 |
-| 悲しみ | 😢 |
-| フラストレーション | 😣 |
-| 不安 | 😰 |
-| 疲労 | 😩 |
-| 普通 | 😐 |
+使いたいAIのAPIキーを取得します：
 
-AIは検出した感情に合わせて、共感メッセージのトーンを調整します。
+- **Gemini**: [Google AI Studio](https://aistudio.google.com/app/apikey)
+- **OpenAI**: [OpenAI Platform](https://platform.openai.com/api-keys)
+- **Claude**: [Anthropic Console](https://console.anthropic.com/settings/keys)
 
-### シュレッダーアニメーション
+### 2. 設定画面でAPIキーを入力
 
-愚痴のテキストが細切れになって落ちていく、Framer Motionを使ったアニメーション。視覚的にも「消えた」という実感が得られます。
+右上の歯車アイコンから設定画面を開き、使いたいAIを選択してAPIキーを入力。
+
+### 3. 愚痴を吐き出す
+
+テキストエリアに愚痴を入力して送信。AIが共感してくれます。
+
+### 4. シュレッダーで消去
+
+「シュレッド！」ボタンを押すと、愚痴のテキストが細切れになって落ちていくアニメーションが再生されます。
+
+## プライバシーへのこだわり
+
+このアプリは**完全クライアントサイド**で動作します。
+
+```
+┌─────────────────────────────────────────┐
+│           あなたのブラウザ               │
+│  ┌─────────────────────────────────┐   │
+│  │  愚痴入力 → AI API呼び出し →    │   │
+│  │  共感表示 → シュレッダー        │   │
+│  └─────────────────────────────────┘   │
+│              ↓                          │
+│  localStorage (APIキーのみ保存)         │
+└─────────────────────────────────────────┘
+              ↓ 直接通信
+┌─────────────────────────────────────────┐
+│  Gemini / OpenAI / Claude API           │
+└─────────────────────────────────────────┘
+```
+
+- **サーバーなし**: 静的サイトとしてCloudflare Pagesにホスティング
+- **データ保存なし**: 愚痴の内容はどこにも保存されない
+- **APIキーはローカル保存**: ブラウザのlocalStorageに保存、サーバーには送信しない
+
+愚痴という機密性の高いデータを扱うからこそ、このアーキテクチャを選びました。
 
 ## 技術スタック
 
@@ -55,88 +84,100 @@ AIは検出した感情に合わせて、共感メッセージのトーンを調
 - Tailwind CSS 4
 - Framer Motion（アニメーション）
 
-**バックエンド**
-- Cloudflare Workers（エッジコンピューティング）
-- Hono（軽量Webフレームワーク）
-- Cloudflare D1（SQLiteベースのDB）
-
 **ホスティング**
-- Cloudflare Pages（フロントエンド）
-- Cloudflare Workers（API）
+- Cloudflare Pages（静的サイト）
 
-全部Cloudflareで完結。無料枠でかなり使えます。
+**AI API**
+- Google Generative AI SDK（Gemini用）
+- OpenAI REST API
+- Anthropic REST API
 
-## アーキテクチャ
+全部クライアントサイドで完結。サーバーコストゼロ。
 
+## シュレッダーアニメーション
+
+愚痴のテキストが細切れになって落ちていく、Framer Motionを使ったアニメーション。
+
+```typescript
+// テキストを1文字ずつ分解してアニメーション
+{text.split('').map((char, i) => (
+  <motion.span
+    key={i}
+    initial={{ y: 0, opacity: 1 }}
+    animate={{
+      y: 500,
+      opacity: 0,
+      rotate: Math.random() * 360,
+    }}
+    transition={{
+      duration: 1.5,
+      delay: i * 0.02,
+    }}
+  >
+    {char}
+  </motion.span>
+))}
 ```
-┌─────────────────┐     ┌─────────────────┐
-│  Cloudflare     │     │  Cloudflare     │
-│  Pages          │────▶│  Workers        │
-│  (Frontend)     │     │  (API)          │
-└─────────────────┘     └────────┬────────┘
-                                 │
-                    ┌────────────┼────────────┐
-                    │            │            │
-                    ▼            ▼            ▼
-              ┌─────────┐ ┌─────────┐ ┌─────────┐
-              │ Gemini  │ │ OpenAI  │ │ Claude  │
-              └─────────┘ └─────────┘ └─────────┘
-                                 │
-                                 ▼
-                        ┌─────────────────┐
-                        │  Cloudflare D1  │
-                        │  (SQLite)       │
-                        └─────────────────┘
-```
+
+視覚的にも「消えた」という実感が得られます。
 
 ## 工夫したポイント
 
-### 1. プライバシーファースト
+### 1. Strategy/Factoryパターン
 
-- DBにはIDと内容のみ保存
-- シュレッダー実行時に`DELETE`で完全消去
-- IPアドレスやユーザー情報は一切保存しない
-
-### 2. フォールバック設計
-
-サーバーAPIが使えない場合、クライアントサイドでGemini APIを直接呼び出すフォールバック機能を実装。可用性を高めています。
-
-### 3. Strategy/Factoryパターン
-
-AIプロバイダーを抽象化し、新しいプロバイダーの追加が容易な設計：
+3つのAIプロバイダーを統一インターフェースで抽象化：
 
 ```typescript
 // 共通インターフェース
-interface AIProvider {
-  name: ProviderType
-  analyze(complaint: string): Promise<AnalysisResult>
-}
+export async function getEmpathyResponse(
+  complaint: string,
+  provider: ProviderType,
+  apiKeys: ApiKeys
+): Promise<{ response: string; provider: ProviderType | 'demo' }>
+```
 
-// ファクトリー関数
-function createProvider(name: ProviderType, keys: ProviderKeys): AIProvider | null {
-  switch (name) {
-    case 'gemini': return new GeminiProvider(keys.GEMINI_API_KEY)
-    case 'openai': return new OpenAIProvider(keys.OPENAI_API_KEY)
-    case 'claude': return new ClaudeProvider(keys.CLAUDE_API_KEY)
-  }
+プロバイダーを追加するときも、この関数の中にcase文を追加するだけ。
+
+### 2. デモモード
+
+APIキーがない場合は、テンプレートの共感メッセージを返すデモモードで動作。初めての人でもすぐ試せます。
+
+### 3. CORSの回避
+
+Claude APIはブラウザからの直接呼び出しを許可するヘッダーが必要：
+
+```typescript
+headers: {
+  'anthropic-dangerous-direct-browser-access': 'true',
 }
 ```
 
+これで、サーバーを介さずにブラウザから直接Claude APIを呼び出せます。
+
 ## 開発のきっかけ
 
-以前作った「Mental Health Journal」の感情分析技術と、「PraiseWidget」の逆パターン（励ましではなく共感）を組み合わせたらどうなるか、という実験から始まりました。
+以前作った「Mental Health Journal」の共感AIと、「消す」という行為のカタルシスを組み合わせたらどうなるか、という実験から始まりました。
 
 結果として、意外と実用的なストレス解消ツールになりました。
+
+## コスト
+
+- **ホスティング**: Cloudflare Pages無料枠
+- **AI API**: 各プロバイダーの従量課金（1回の愚痴で約0.1円〜1円程度）
+
+サーバーサイドのコストはゼロ。AI APIの費用だけで運用できます。
 
 ## 今後の予定
 
 - 音声入力対応
-- より詳細な感情分析
-- 統計ダッシュボード（匿名化）
+- オフライン対応（PWA化）
+- より派手なシュレッダーアニメーション
 
 ## 最後に
 
 ストレスが溜まったら、ぜひ使ってみてください。愚痴は言葉にして、AIに受け止めてもらって、シュレッダーで消す。このサイクルが意外とスッキリします。
+
+データは絶対に残らないので、安心して愚痴ってください。
 
 **デモ**: https://ai-complaint-shredder.pages.dev
 **GitHub**: https://github.com/sayasaya8039/AI_Complaint_Shredder
