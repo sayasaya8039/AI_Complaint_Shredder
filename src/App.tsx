@@ -1,97 +1,66 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { Settings } from 'lucide-react'
 import { Header } from './components/Header'
 import { ComplaintInput } from './components/ComplaintInput'
 import { AIResponse } from './components/AIResponse'
 import { ShredderAnimation } from './components/ShredderAnimation'
 import { SettingsModal } from './components/SettingsModal'
-import { getEmpathyResponse } from './lib/gemini'
-import { submitComplaint, shredComplaint, getAvailableProviders, type ProviderType } from './lib/api'
+import { getEmpathyResponse, type ProviderType, type ApiKeys } from './lib/providers'
 import type { AppPhase } from './types'
 
 function App() {
   const [phase, setPhase] = useState<AppPhase>('input')
   const [complaint, setComplaint] = useState('')
-  const [complaintId, setComplaintId] = useState<string | null>(null)
   const [aiResponse, setAiResponse] = useState('')
-  const [sentiment, setSentiment] = useState<string>('')
   const [usedProvider, setUsedProvider] = useState<string>('')
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [availableProviders, setAvailableProviders] = useState<ProviderType[]>([])
+
   const [selectedProvider, setSelectedProvider] = useState<ProviderType>(() => {
     return (localStorage.getItem('selected_provider') as ProviderType) || 'gemini'
   })
-  const [apiKey, setApiKey] = useState(() => {
-    return localStorage.getItem('gemini_api_key') || ''
-  })
 
-  // 利用可能なプロバイダーを取得
-  useEffect(() => {
-    getAvailableProviders().then((res) => {
-      setAvailableProviders(res.providers)
-      if (res.default && !res.providers.includes(selectedProvider)) {
-        setSelectedProvider(res.default)
-      }
-    })
-  }, [])
+  const [apiKeys, setApiKeys] = useState<ApiKeys>(() => ({
+    gemini: localStorage.getItem('api_key_gemini') || '',
+    openai: localStorage.getItem('api_key_openai') || '',
+    claude: localStorage.getItem('api_key_claude') || '',
+  }))
 
   const handleSubmit = useCallback(async (text: string) => {
     setComplaint(text)
     setPhase('responding')
 
     try {
-      // APIを試す（プロバイダー指定）
-      const apiResult = await submitComplaint(text, selectedProvider)
-      setComplaintId(apiResult.id)
-      setSentiment(apiResult.sentiment)
-      setAiResponse(apiResult.response)
-      setUsedProvider(apiResult.provider)
+      const result = await getEmpathyResponse(text, selectedProvider, apiKeys)
+      setAiResponse(result.response)
+      setUsedProvider(result.provider)
       setPhase('responding')
-    } catch {
-      // APIエラー時はクライアントサイドで処理
-      try {
-        const response = await getEmpathyResponse(text, apiKey)
-        setAiResponse(response)
-        setComplaintId(null)
-        setUsedProvider('client')
-        setPhase('responding')
-      } catch (error) {
-        console.error('Error getting AI response:', error)
-        setAiResponse('エラーが発生しました。もう一度お試しください。')
-        setPhase('responding')
-      }
+    } catch (error) {
+      console.error('Error getting AI response:', error)
+      setAiResponse('エラーが発生しました。もう一度お試しください。')
+      setUsedProvider('error')
+      setPhase('responding')
     }
-  }, [apiKey, selectedProvider])
+  }, [apiKeys, selectedProvider])
 
-  const handleShred = useCallback(async () => {
+  const handleShred = useCallback(() => {
     setPhase('shredding')
-
-    // APIでDBから完全削除
-    if (complaintId) {
-      try {
-        await shredComplaint(complaintId)
-        console.log('Complaint permanently deleted from DB')
-      } catch (error) {
-        console.error('Failed to delete from DB:', error)
-      }
-    }
-  }, [complaintId])
+  }, [])
 
   const handleShredComplete = useCallback(() => {
     setPhase('complete')
     setTimeout(() => {
       setPhase('input')
       setComplaint('')
-      setComplaintId(null)
       setAiResponse('')
-      setSentiment('')
       setUsedProvider('')
     }, 3000)
   }, [])
 
-  const handleSaveApiKey = useCallback((key: string) => {
-    setApiKey(key)
-    localStorage.setItem('gemini_api_key', key)
+  const handleSaveApiKeys = useCallback((keys: ApiKeys) => {
+    setApiKeys(keys)
+    localStorage.setItem('api_key_gemini', keys.gemini || '')
+    localStorage.setItem('api_key_openai', keys.openai || '')
+    localStorage.setItem('api_key_claude', keys.claude || '')
   }, [])
 
   const handleSelectProvider = useCallback((provider: ProviderType) => {
@@ -121,7 +90,6 @@ function App() {
         {phase === 'responding' && aiResponse && (
           <AIResponse
             response={aiResponse}
-            sentiment={sentiment}
             provider={usedProvider}
             onShred={handleShred}
           />
@@ -136,9 +104,6 @@ function App() {
             <p className="text-slate-400">
               また愚痴があればいつでもどうぞ
             </p>
-            <p className="text-xs text-slate-500 mt-2">
-              ※データは完全に消去されました
-            </p>
           </div>
         )}
       </main>
@@ -152,16 +117,15 @@ function App() {
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        apiKey={apiKey}
-        onSaveApiKey={handleSaveApiKey}
-        availableProviders={availableProviders}
+        apiKeys={apiKeys}
+        onSaveApiKeys={handleSaveApiKeys}
         selectedProvider={selectedProvider}
         onSelectProvider={handleSelectProvider}
       />
 
       <footer className="py-4 text-center text-slate-500 text-sm">
         <p>愚痴データはサーバーに保存されません 🔒</p>
-        <p className="text-xs mt-1">（シュレッダー実行時にDBから完全削除）</p>
+        <p className="text-xs mt-1">（クライアント側で処理、ローカルストレージに一時保存のみ）</p>
       </footer>
     </div>
   )
