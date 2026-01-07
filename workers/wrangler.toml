@@ -8,7 +8,7 @@ enabled = true
 [[d1_databases]]
 binding = "DB"
 database_name = "complaint-shredder"
-database_id = "" # wrangler d1 create complaint-shredder で取得後に設定
+database_id = "4034345f-fb2d-45e4-8b3c-ec9b86d231fc"
 
 # APIキーは wrangler secret put で設定（varsには空で定義）
 # wrangler secret put GEMINI_API_KEY
