@@ -59,7 +59,7 @@ export function ShredderAnimation({ text, isShredding, onComplete }: ShredderAni
     }
   }, [isShredding, generateParticles, onComplete])
 
-  if (!isShredding && phase === 'done') {
+  if (!isShredding) {
     return null
   }
 
